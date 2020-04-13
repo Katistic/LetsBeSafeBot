@@ -234,22 +234,30 @@ class Bot(discord.Client):
                 if payload.emoji.id == 590028329277718538:
                     print("[USR] Obtained gender role 'male'")
                     await self.give_member_role(payload.user_id, 632522224024289301)
-                if payload.emoji.id == 476801025991507979:
+                elif payload.emoji.id == 476801025991507979:
                     print("[USR] Obtained gender role 'everything'")
                     await self.give_member_role(payload.user_id, 632522554074071050)
-                if payload.emoji.id == 527053057171783690:
+                elif payload.emoji.id == 527053057171783690:
                     print("[USR] Obtained gender role 'nothing'")
                     await self.give_member_role(payload.user_id, 632524877412171788)
-                if payload.emoji.id == 590028360772616193:
+                elif payload.emoji.id == 590028360772616193:
                     print("[USR] Obtained gender role 'female'")
                     await self.give_member_role(payload.user_id, 632522281888776202)
+                elif payload.emoji.id == 616113741980893214:
+                    print("[USR] Obtained gender role 'other'")
+                    await self.give_member_role(payload.user_id, 699339137639120971)
+                else:
+                    print("[USR] Unknown gender reaction ("+str(payload.emoji.id)+")")
+
             elif payload.message_id == 632528504319377449:
                 if payload.emoji.id == 556161748822917120:
                     print("[USR] Obtained age role '18+'")
                     await self.give_member_role(payload.user_id, 632525773756170260)
-                if payload.emoji.id == 533032578165506058:
+                elif payload.emoji.id == 533032578165506058:
                     print("[USR] Obtained age role '<18'")
                     await self.give_member_role(payload.user_id, 632516288111050752)
+                else:
+                    print("[USR] Unknown age reaction ("+str(payload.emoji.id)+")")
 
 
     async def on_raw_reaction_remove(self, payload):
@@ -258,22 +266,29 @@ class Bot(discord.Client):
                 if payload.emoji.id == 590028329277718538:
                     print("[USR] Removed gender role 'male'")
                     await self.remove_member_role(payload.user_id, 632522224024289301)
-                if payload.emoji.id == 476801025991507979:
+                elif payload.emoji.id == 476801025991507979:
                     print("[USR] Removed gender role 'everything'")
                     await self.remove_member_role(payload.user_id, 632522554074071050)
-                if payload.emoji.id == 527053057171783690:
+                elif payload.emoji.id == 527053057171783690:
                     print("[USR] Removed gender role 'nothing'")
                     await self.remove_member_role(payload.user_id, 632524877412171788)
-                if payload.emoji.id == 590028360772616193:
+                elif payload.emoji.id == 590028360772616193:
                     print("[USR] Removed gender role 'female'")
                     await self.remove_member_role(payload.user_id, 632522281888776202)
+                elif payload.emoji.id == 616113741980893214:
+                    print("[USR] Removed gender role 'other'")
+                    await self.remove_member_role(payload.user_id, 699339137639120971)
+                else:
+                    print("[USR] Unknown gender reaction ("+str(payload.emoji.id)+")")
             elif payload.message_id == 632528504319377449:
                 if payload.emoji.id == 556161748822917120:
                     print("[USR] Removed age role '18+'")
                     await self.remove_member_role(payload.user_id, 632525773756170260)
-                if payload.emoji.id == 533032578165506058:
+                elif payload.emoji.id == 533032578165506058:
                     print("[USR] Removed age role '<18'")
                     await self.remove_member_role(payload.user_id, 632516288111050752)
+                else:
+                    print("[USR] Unknown age reaction ("+str(payload.emoji.id)+")")
 
 
     async def on_message(self, msg):
