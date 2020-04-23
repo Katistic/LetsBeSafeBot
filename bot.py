@@ -145,15 +145,8 @@ class Bot(discord.Client):
 
         if len(parts) > 1:
             if len(parts) == 2 and parts[1].count(" ") == 0 and "." in parts[1] and "/" in parts[1]:
-                url = parts[1]
-
-                #Player = await YTDLSource.from_url(url, loop=self.loop)#, stream=True)
-                self.Queue.append(url)
-
+                self.Queue.append(parts[1])
                 await msg.channel.send("Added song to the queue.")# % Player.title )
-                #self.VoiceClient.play(self.Player, after=lambda e: print('[BOT] Player error: %s' % e) if e else None)
-
-                #await msg.channel.send('Now playing: {}'.format(self.Player.title))
             else:
                 del parts[0]
 
