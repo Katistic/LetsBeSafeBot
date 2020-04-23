@@ -3,8 +3,69 @@ import asyncio
 import time
 
 from iomanage import IOManager as IOM
+import youtube_dl
+
+ytdl = youtube_dl.YoutubeDL({
+    'format': 'bestaudio/best',
+    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
+    'restrictfilenames': True,
+    'noplaylist': True,
+    'nocheckcertificate': True,
+    'ignoreerrors': False,
+    'logtostderr': False,
+    'quiet': True,
+    'no-cache-dir': True,
+    'no_warnings': True,
+    "rm-cache-dir": True,
+    #"verbose": True,
+    'default_search': 'auto'
+})
+
+ffmpeg_options = {
+    'options': '-vn'
+}
+
+class YTDLSource(discord.PCMVolumeTransformer):
+    def __init__(self, source, *, data, volume=0.5):
+        super().__init__(source, volume)
+
+        self.data = data
+
+        self.title = data.get('title')
+        self.url = data.get('url')
+        self.id = data.get('id')
+
+    @classmethod
+    async def from_url(cls, url, *, loop=None, stream=None):
+        loop = loop or asyncio.get_event_loop()
+        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
+
+        if 'entries' in data:
+            # take first item from a playlist
+            data = data['entries'][0]
+
+        filename = data['url'] if stream else ytdl.prepare_filename(data)
+        return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
 
 class Bot(discord.Client):
+    async def playerLoop(self):
+        self.playerLoopRunning = True
+
+        while len(self.Queue) != 0 and self.VoiceClient != None:
+            await asyncio.sleep(1)
+
+            if self.VoiceClient.is_playing():
+                continue
+
+            try:
+                self.Player = await YTDLSource.from_url(self.Queue.pop(0), loop=self.loop, stream=False)
+                self.VoiceClient.play(self.Player, after=lambda e: print('[BOT] Player error: %s' % e) if e else None)
+                await asyncio.sleep(5)
+            except Exception as e:
+                self.VoiceClient.stop()
+                print(e)
+
+        self.playerLoopRunning = False
 
     ## Command functions
 
@@ -46,6 +107,66 @@ class Bot(discord.Client):
             except:
                 pass
 
+    # Audio
+
+    async def join_cmd(self, msg, parts):
+        if msg.author.voice != None:
+            if self.VoiceClient == None or not self.VoiceClient.is_connected():
+                self.VoiceClient = await msg.author.voice.channel.connect()
+                await msg.channel.send("Joined into "+msg.author.voice.channel.name)
+            elif self.VoiceClient.channel != msg.author.voice.channel:
+                await self.VoiceClient.move_to(msg.author.voice.channel)
+                await msg.channel.send("Moved into "+msg.author.voice.channel.name)
+        else:
+            await msg.channel.send(msg.author.mention+", you aren't in a voice channel.")
+
+    async def leave_cmd(self, msg, parts):
+        if self.VoiceClient != None and self.VoiceClient.is_connected():
+            if msg.author.voice.channel == self.VoiceClient.channel:
+                await self.VoiceClient.disconnect()
+                self.VoiceClient.stop()
+                self.Queue.clear()
+                self.VoiceClient = None
+                await msg.channel.send("Left voice channel.")
+            else:
+                await msg.channel.send(msg.author.mention+", the bot isn't in the same voice channel as you.")
+        else:
+            await msg.channel.send(msg.author.mention+", the bot isn't in a voice channel.")
+
+    async def play_cmd(self, msg, parts):
+        await self.join_cmd(msg, parts)
+
+        if len(parts) > 1:
+            if len(parts) == 2 and parts[1].count(" ") == 0 and "." in parts[1] and "/" in parts[1]:
+                url = parts[1]
+
+                #Player = await YTDLSource.from_url(url, loop=self.loop)#, stream=True)
+                self.Queue.append(url)
+
+                await msg.channel.send("Added song to the queue.")# % Player.title )
+                #self.VoiceClient.play(self.Player, after=lambda e: print('[BOT] Player error: %s' % e) if e else None)
+
+                #await msg.channel.send('Now playing: {}'.format(self.Player.title))
+            #else:
+                #q = " ".join(parts.remove(parts[0]))
+                #print(q)
+
+        if not self.playerLoopRunning:
+            self.loop.create_task(self.playerLoop())
+
+    async def skip_cmd(self, msg, parts):
+        if self.VoiceClient != None and self.VoiceClient.is_connected():
+            if self.VoiceClient.channel == msg.author.voice.channel:
+                if self.VoiceClient.is_playing():
+                    self.VoiceClient.stop()
+                    await msg.channel.send("Skipping song...")
+                else:
+                    await msg.channel.send("Nothing is playing.")
+            else:
+                await msg.channel.send("You are not in the voice channel with me.")
+        else:
+            await msg.channel.send("I'm not in a voice channel.")
+
     ## Utility funcs
 
     def __init__(self):
@@ -53,9 +174,13 @@ class Bot(discord.Client):
 
         self.Commands = []
         self.Newbies = []
+        self.Queue = []
+        self.VoiceClient = None
+        self.Player = None
 
-        ## Commands
+        self.playerLoopRunning = False
 
+        ## Comman
         self.CreateCommand(
             "test",
             self.tst_cmd,
@@ -68,7 +193,7 @@ class Bot(discord.Client):
         self.CreateCommand(
             "help",
             self.hlp_cmd,
-            "List commands and their descriptions, or use {}help <command> to describe a specific command.".format(io.Read()['prefix'])
+            "List commands and their descriptions, or use {}help <command> to describe a specific command.".format(io.read()['prefix'])
         )
 
         self.CreateCommand(
@@ -77,7 +202,31 @@ class Bot(discord.Client):
             "Check if you are compliant with servers privacy policy, and assign role accordingly."
         )
 
-        self.run(io.Read()['clientToken'])
+        self.CreateCommand(
+            "join",
+            self.join_cmd,
+            "Makes bot join your current voice channel."
+        )
+
+        self.CreateCommand(
+            "leave",
+            self.leave_cmd,
+            "Makes bot leave your voice channel."
+        )
+
+        self.CreateCommand(
+            "play",
+            self.play_cmd,
+            "Plays a song."
+        )
+
+        self.CreateCommand(
+            "skip",
+            self.skip_cmd,
+            "Skips a song."
+        )
+
+        self.run(io.read()['clientToken'])
 
     # Search for command, returns command dict
     def SearchCommand(self, name):
@@ -294,7 +443,7 @@ class Bot(discord.Client):
     async def on_message(self, msg):
         if not msg.author.bot:
             if msg.channel.guild.id == 632460050660720650:
-                pf = io.Read()['prefix']
+                pf = io.read()['prefix']
                 if msg.content.startswith(pf):
                     parts = msg.content[len(pf):].split(" ")
                     command = self.SearchCommand(parts[0])
@@ -328,8 +477,8 @@ class Bot(discord.Client):
 if __name__ == "__main__":
     io = IOM("configs.json")
 
-    if io.Read() == {}:
-        io.Write({
+    if io.read() == {}:
+        io.write({
             "clientToken": None,
             "prefix": "!"
         })
