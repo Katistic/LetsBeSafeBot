@@ -1,8 +1,10 @@
 import discord
 import asyncio
+import requests
 import time
 
 from iomanage import IOManager as IOM
+import urllib.parse
 import youtube_dl
 
 ytdl = youtube_dl.YoutubeDL({
@@ -46,6 +48,11 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
         filename = data['url'] if stream else ytdl.prepare_filename(data)
         return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
+
+    @classmethod
+    def url_from_query(self, q):
+        d = requests.get("https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q="+urllib.parse.quote(q)+"&type=video&key="+io.read()["ytToken"])
+        return "https://www.youtube.com/watch?v="+d.json()["items"][0]["id"]["videoId"]
 
 class Bot(discord.Client):
     async def playerLoop(self):
@@ -147,9 +154,14 @@ class Bot(discord.Client):
                 #self.VoiceClient.play(self.Player, after=lambda e: print('[BOT] Player error: %s' % e) if e else None)
 
                 #await msg.channel.send('Now playing: {}'.format(self.Player.title))
-            #else:
-                #q = " ".join(parts.remove(parts[0]))
-                #print(q)
+            else:
+                del parts[0]
+
+                q = " ".join(parts)
+                url = YTDLSource.url_from_query(q)
+                self.Queue.append(url)
+
+                await msg.channel.send("Added song to the queue: "+url)
 
         if not self.playerLoopRunning:
             self.loop.create_task(self.playerLoop())
@@ -480,6 +492,7 @@ if __name__ == "__main__":
     if io.read() == {}:
         io.write({
             "clientToken": None,
+            "ytToken": None,
             "prefix": "!"
         })
 
