@@ -4,4 +4,6 @@
 # Requirements
 
 iomanage
-discord.py
+discord.py[voice]
+requests
+youtube_dl
