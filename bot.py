@@ -477,7 +477,9 @@ class Bot(discord.Client):
         print("[BOT] Internal cache is ready")
 
         # Start privacy check loop
-        await asyncio.ensure_future(self.priv_check_loop())
+        self.loop.create_task(self.priv_check_loop())
+        #await asyncio.ensure_future(self.priv_check_loop())
+
     async def on_resumed(self):
         print("[BOT] Connection to discord re-established")
 
