@@ -2,6 +2,7 @@ import discord
 import asyncio
 import requests
 import time
+import os
 
 from iomanage import IOManager as IOM
 import urllib.parse
@@ -9,7 +10,7 @@ import youtube_dl
 
 ytdl = youtube_dl.YoutubeDL({
     'format': 'bestaudio/best',
-    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
+    'outtmpl': 'lbs-%(extractor)s-%(id)s.%(ext)s',
     'restrictfilenames': True,
     'noplaylist': True,
     'nocheckcertificate': True,
@@ -35,7 +36,8 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
         self.title = data.get('title')
         self.url = data.get('url')
-        self.id = data.get('id')
+
+        self.bFilename = "lbs-"+data.get('extractor')+"-"+data.get('id')
 
     @classmethod
     async def from_url(cls, url, *, loop=None, stream=None):
@@ -55,6 +57,29 @@ class YTDLSource(discord.PCMVolumeTransformer):
         return "https://www.youtube.com/watch?v="+d.json()["items"][0]["id"]["videoId"]
 
 class Bot(discord.Client):
+    def removeFile(self, base):
+        removed = False
+        print("[BOT] Removing "+base)
+
+        for root, dirs, files in os.walk("."):
+            for file in files:
+                if base in file:
+                    os.remove(os.path.join(root, file))
+                    removed = True
+                    break
+            if removed: break
+
+        return removed
+
+    def removeOldSongs(self):
+        print("[BOT] Removing old songs...")
+
+        for root, dirs, files in os.walk("."):
+            for file in files:
+                if file.startswith("lbs-"):
+                    os.remove(file)
+                    print("[BOT] Removed "+file)
+
     async def playerLoop(self):
         self.playerLoopRunning = True
 
@@ -63,6 +88,9 @@ class Bot(discord.Client):
 
             if self.VoiceClient.is_playing():
                 continue
+
+            if self.Player != None:
+                self.removeFile(self.Player.bFilename)
 
             try:
                 self.Player = await YTDLSource.from_url(self.Queue.pop(0), loop=self.loop, stream=False)
@@ -231,6 +259,7 @@ class Bot(discord.Client):
             "Skips a song."
         )
 
+        self.removeOldSongs()
         self.run(io.read()['clientToken'])
 
     # Search for command, returns command dict
@@ -477,7 +506,20 @@ class Bot(discord.Client):
         print("[BOT] Internal cache is ready")
 
         # Start privacy check loop
-        await asyncio.ensure_future(self.priv_check_loop())
+        self.loop.create_task(self.priv_check_loop())
+        #await asyncio.ensure_future(self.priv_check_loop())
+
+    async def on_resumed(self):
+        print("[BOT] Connection to discord re-established")
+
+    async def on_voice_state_update(self, member, b, a):
+        if self.VoiceClient != None and self.VoiceClient.channel != None:
+            if len(self.VoiceClient.channel.members) == 1:
+                await self.VoiceClient.channel.guild.get_channel(632591366400245787).send("Everyone left the voice channel, queue has been cleared.")
+                self.Queue.clear()
+                self.VoiceClient.stop()
+                await self.VoiceClient.disconnect()
+                self.VoiceClient = None
 
 if __name__ == "__main__":
     io = IOM("configs.json")
