@@ -478,6 +478,9 @@ class Bot(discord.Client):
 
         # Start privacy check loop
         await asyncio.ensure_future(self.priv_check_loop())
+    async def on_resumed(self):
+        print("[BOT] Connection to discord re-established")
+
 
 if __name__ == "__main__":
     io = IOM("configs.json")
