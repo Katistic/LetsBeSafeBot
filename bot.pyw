@@ -521,6 +521,9 @@ class Bot(discord.Client):
                 await self.VoiceClient.disconnect()
                 self.VoiceClient = None
 
+    async def on_error(self, event, *args, **kwargs):
+        print("[ERR] Bot failed to on event '" + event + "', with args "+str(args)+" and kwargs "+str(kwargs))
+
 if __name__ == "__main__":
     io = IOM("configs.json")
 
