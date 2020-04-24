@@ -483,6 +483,14 @@ class Bot(discord.Client):
     async def on_resumed(self):
         print("[BOT] Connection to discord re-established")
 
+    async def on_voice_state_update(self, member, b, a):
+        if self.VoiceClient != None and self.VoiceClient.channel != None:
+            if len(self.VoiceClient.channel.members) == 1:
+                await self.VoiceClient.channel.guild.get_channel(632591366400245787).send("Everyone left the voice channel, queue has been cleared.")
+                self.Queue.clear()
+                self.VoiceClient.stop()
+                await self.VoiceClient.disconnect()
+                self.VoiceClient = None
 
 if __name__ == "__main__":
     io = IOM("configs.json")
