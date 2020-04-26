@@ -200,6 +200,23 @@ class Bot(discord.Client):
         else:
             await msg.channel.send("I'm not in a voice channel.")
 
+    async def remove_cmd(self, msg, parts):
+        if self.VoiceClient != None and self.VoiceClient.is_connected():
+            if self.VoiceClient.channel == msg.author.voice.channel:
+                if len(parts) == 2:
+                    url = parts[1]
+                    if url in self.Queue:
+                        self.Queue.remove(url)
+                        await msg.channel.send("Removed song from queue.")
+                    else:
+                        await msg.channel.send("That URL is not in the queue.")
+                else:
+                    await msg.channel.send("Please enter a URL to remove from queue.")
+            else:
+                await msg.channel.send("You are not in the voice channel with me.")
+        else:
+            await msg.channel.send("I'm not in a voice channel.")
+
     ## Utility funcs
 
     def __init__(self):
@@ -257,6 +274,12 @@ class Bot(discord.Client):
             "skip",
             self.skip_cmd,
             "Skips a song."
+        )
+
+        self.CreateCommand(
+            "remove",
+            self.remove_cmd,
+            "Removes URL from queue."
         )
 
         self.removeOldSongs()
