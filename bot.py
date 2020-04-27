@@ -269,6 +269,31 @@ class Bot(discord.Client):
         else:
             await msg.channel.send("I'm not in a voice channel.")
 
+    async def playlist_cmd(self, msg, parts):
+        vc = True
+
+        if msg.author.voice != None:
+            if self.VoiceClient == None or msg.author.voice.channel != self.VoiceClient.channel:
+                vc = await self.join_cmd(msg, parts)
+
+            if vc:
+                if len(parts) == 2 and parts[1].count(" ") == 0 and "." in parts[1] and "/" in parts[1] and "youtube.com" in parts[1] and "list=" in parts[1]:
+                    id = parts[1].split("list=")[1]
+                    id = id.split("&")[0] if "&" in id else id
+
+                    items = YTDLSource.urls_from_playlist_id(id, True)
+                    self.Queue += items
+
+                    await msg.channel.send("Added {} song(s) to the queue.".format(str(len(items))))
+
+                    if not self.playerLoopRunning:
+                        self.loop.create_task(self.playerLoop())
+                else:
+                    await msg.channel.send("Please enter a valid youtube playlist url.")
+            else:
+                await msg.channel.send("You are not in the voice channel with me.")
+        await msg.channel.send("You are not in the voice channel with me.")
+
     ## Utility funcs
 
     def __init__(self):
@@ -338,6 +363,12 @@ class Bot(discord.Client):
             "shuffle",
             self.shuffle_cmd,
             "Shuffles queue."
+        )
+
+        self.create_command(
+            "playlist",
+            self.playlist_cmd,
+            "Adds a playlist from youtube to the queue. ***{}playlist <url>***".format(io.read()['prefix'])
         )
 
         self.removeOldSongs()
