@@ -1,6 +1,6 @@
 import discord
 import asyncio
-import requests
+import aiohttp
 import random
 import time
 import os
@@ -56,33 +56,35 @@ class YTDLSource(discord.PCMVolumeTransformer):
         return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
 
     @classmethod
-    def url_from_query(self, q):
-        # TODO: Make this request async
-        d = requests.get("https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q="+urllib.parse.quote(q)+"&type=video&key="+io.read()["ytToken"])
-        return "https://www.youtube.com/watch?v="+d.json()["items"][0]["id"]["videoId"]
+    async def url_from_query(self, q):
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q="+urllib.parse.quote(q)+"&type=video&key="+io.read()["ytToken"]) as d:
+                d = await d.json()
+                return "https://www.youtube.com/watch?v="+d["items"][0]["id"]["videoId"]
 
     @classmethod
-    def urls_from_playlist_id(self, id, all=True, npt=None):
-        # TODO: Make these requests async
+    async def urls_from_playlist_id(self, id, all=True, npt=None):
+        async with aiohttp.ClientSession() as session:
+            if npt == None:
+                async with session.get("https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&maxResults=50&playlistId="+id+"&key="+io.read()["ytToken"]) as d:
+                    if d.status != 200:
+                        return []
+                    d = await d.json()
+            else:
+                async with session.get("https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&maxResults=50&pageToken="+npt+"&playlistId="+id+"&key="+io.read()["ytToken"]) as d:
+                    if d.status != 200:
+                        return []
+                    d = await d.json()
 
-        if npt == None:
-            d = requests.get("https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&maxResults=50&playlistId="+id+"&key="+io.read()["ytToken"])
-        else:
-            d = requests.get("https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&maxResults=50&pageToken="+npt+"&playlistId="+id+"&key="+io.read()["ytToken"])
+        items = []
 
-        if d.status_code != 200:
-            return []
-        else:
-            d = d.json()
-            items = []
+        for item in d["items"]:
+            items.append("https://www.youtube.com/watch?v="+item["contentDetails"]["videoId"])
 
-            for item in d["items"]:
-                items.append("https://www.youtube.com/watch?v="+item["contentDetails"]["videoId"])
+        if all == True and "nextPageToken" in d:
+            items += await self.urls_from_playlist_id(id, all, d["nextPageToken"])
 
-            if all == True and "nextPageToken" in d:
-                items += self.urls_from_playlist_id(id, all, d["nextPageToken"])
-
-            return items
+        return items
 
 class Bot(discord.Client):
     def removeFile(self, base):
@@ -216,7 +218,7 @@ class Bot(discord.Client):
                         del parts[0]
 
                         q = " ".join(parts)
-                        url = YTDLSource.url_from_query(q)
+                        url = await YTDLSource.url_from_query(q)
                         self.Queue.append(url)
 
                         await msg.channel.send("Added song to the queue: "+url)
@@ -281,7 +283,7 @@ class Bot(discord.Client):
                     id = parts[1].split("list=")[1]
                     id = id.split("&")[0] if "&" in id else id
 
-                    items = YTDLSource.urls_from_playlist_id(id, True)
+                    items = await YTDLSource.urls_from_playlist_id(id, True)
                     self.Queue += items
 
                     await msg.channel.send("Added {} song(s) to the queue.".format(str(len(items))))
@@ -292,7 +294,8 @@ class Bot(discord.Client):
                     await msg.channel.send("Please enter a valid youtube playlist url.")
             else:
                 await msg.channel.send("You are not in the voice channel with me.")
-        await msg.channel.send("You are not in the voice channel with me.")
+        else:
+            await msg.channel.send("You are not in the voice channel with me.")
 
     ## Utility funcs
 
