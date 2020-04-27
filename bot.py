@@ -251,7 +251,7 @@ class Bot(discord.Client):
         self.playerLoopRunning = False
 
         ## Comman
-        self.CreateCommand(
+        self.create_command(
             "test",
             self.tst_cmd,
             "Test to see if bot is recieving commands.",
@@ -260,49 +260,49 @@ class Bot(discord.Client):
             ]
         )
 
-        self.CreateCommand(
+        self.create_command(
             "help",
             self.hlp_cmd,
-            "List commands and their descriptions, or use {}help <command> to describe a specific command.".format(io.read()['prefix'])
+            "List commands and their descriptions, or use ***{}help <command>*** to describe a specific command.".format(io.read()['prefix'])
         )
 
-        self.CreateCommand(
+        self.create_command(
             "check",
             self.priv_check_cmd,
             "Check if you are compliant with servers privacy policy, and assign role accordingly."
         )
 
-        self.CreateCommand(
+        self.create_command(
             "join",
             self.join_cmd,
             "Makes bot join your current voice channel."
         )
 
-        self.CreateCommand(
+        self.create_command(
             "leave",
             self.leave_cmd,
             "Makes bot leave your voice channel."
         )
 
-        self.CreateCommand(
+        self.create_command(
             "play",
             self.play_cmd,
-            "Plays a song."
+            "Plays a song. Supports most sites except spotify (via url). ***{}play <url/songname>***".format(io.read()['prefix'])
         )
 
-        self.CreateCommand(
+        self.create_command(
             "skip",
             self.skip_cmd,
             "Skips a song."
         )
 
-        self.CreateCommand(
+        self.create_command(
             "remove",
             self.remove_cmd,
-            "Removes URL from queue."
+            "Removes URL from queue. ***{}remove <url>***".format(io.read()['prefix'])
         )
 
-        self.CreateCommand(
+        self.create_command(
             "shuffle",
             self.shuffle_cmd,
             "Shuffles queue."
@@ -312,7 +312,7 @@ class Bot(discord.Client):
         self.run(io.read()['clientToken'])
 
     # Search for command, returns command dict
-    def SearchCommand(self, name):
+    def search_command(self, name):
         name = name.lower()
         for command in self.Commands:
             if command['name'] == name or name in command['alias']:
@@ -320,7 +320,7 @@ class Bot(discord.Client):
         return None
 
     # Create a command
-    def CreateCommand(self, name, function, description, roles=[], alias=[], asyncio=True):
+    def create_command(self, name, function, description, roles=[], alias=[], asyncio=True):
         command = {
             "name": name,
             "function": function,
@@ -333,11 +333,11 @@ class Bot(discord.Client):
         # Check for replica command names
         isNew = True
         taken = []
-        if not self.SearchCommand(name) == None:
+        if not self.search_command(name) == None:
             isNew = False
             taken.append(name)
         for a in alias:
-            if not self.SearchCommand(a) == None:
+            if not self.search_command(a) == None:
                 isNew = False
                 taken.append(a)
 
@@ -529,7 +529,7 @@ class Bot(discord.Client):
                 pf = io.read()['prefix']
                 if msg.content.startswith(pf):
                     parts = msg.content[len(pf):].split(" ")
-                    command = self.SearchCommand(parts[0])
+                    command = self.search_command(parts[0])
                     if command != None:
                         if self.cmd_authorized(command["roles"], msg.author.roles):
                             print("[USR] Sent command in "+msg.channel.name+" ("+str(msg.channel.id)+")")
