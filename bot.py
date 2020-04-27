@@ -139,7 +139,7 @@ class Bot(discord.Client):
 
         # Is the user asking for help for a specific command?
         if len(parts) == 2: # Yes
-            cmd = self.SearchCommand(parts[1])
+            cmd = self.search_command(parts[1])
             if not cmd == None:
                 descs = "Help for `"+cmd["name"]+"`:\n  Alias: "
                 descs += ", ".join[cmd['alias']] if len(cmd['alias']) > 0 else "None"
@@ -177,11 +177,15 @@ class Bot(discord.Client):
             if self.VoiceClient == None or not self.VoiceClient.is_connected():
                 self.VoiceClient = await msg.author.voice.channel.connect()
                 await msg.channel.send("Joined into "+msg.author.voice.channel.name)
+
+                return True
             elif self.VoiceClient.channel != msg.author.voice.channel:
                 await self.VoiceClient.move_to(msg.author.voice.channel)
                 await msg.channel.send("Moved into "+msg.author.voice.channel.name)
         else:
             await msg.channel.send(msg.author.mention+", you aren't in a voice channel.")
+
+        return False
 
     async def leave_cmd(self, msg, parts):
         if self.VoiceClient != None and self.VoiceClient.is_connected():
