@@ -170,9 +170,10 @@ class Bot(discord.Client):
 
     async def play_cmd(self, msg, parts):
         if msg.author.voice != None:
-            if msg.author.voice.channel == self.VoiceClient.channel:
+            if msg.author.voice.channel != self.VoiceClient.channel:
                 await self.join_cmd(msg, parts)
 
+            if msg.author.voice.channel == self.VoiceClient.channel:
                 if len(parts) > 1:
                     if len(parts) == 2 and parts[1].count(" ") == 0 and "." in parts[1] and "/" in parts[1]:
                         url = parts[1]
@@ -553,6 +554,8 @@ class Bot(discord.Client):
 
     async def on_error(self, event, *args, **kwargs):
         print("[ERR] Bot failed on event '" + event + "', with args "+str(args)+" and kwargs "+str(kwargs))
+        if event == "on_message":
+            await self.get_guild(args[0].guild.id).get_channel(args[0].channel.id).send("An error occured...")
 
 if __name__ == "__main__":
     io = IOM("configs.json")
