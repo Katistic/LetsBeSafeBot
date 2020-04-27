@@ -169,23 +169,30 @@ class Bot(discord.Client):
             await msg.channel.send(msg.author.mention+", the bot isn't in a voice channel.")
 
     async def play_cmd(self, msg, parts):
-        await self.join_cmd(msg, parts)
+        if msg.author.voice != None:
+            if msg.author.voice.channel == self.VoiceClient.channel:
+                await self.join_cmd(msg, parts)
 
-        if len(parts) > 1:
-            if len(parts) == 2 and parts[1].count(" ") == 0 and "." in parts[1] and "/" in parts[1]:
-                self.Queue.append(parts[1])
-                await msg.channel.send("Added song to the queue.")# % Player.title )
+                if len(parts) > 1:
+                    if len(parts) == 2 and parts[1].count(" ") == 0 and "." in parts[1] and "/" in parts[1]:
+                        url = parts[1]
+                        self.Queue.append(url)
+                        await msg.channel.send("Added song to the queue.")
+                    else:
+                        del parts[0]
+
+                        q = " ".join(parts)
+                        url = YTDLSource.url_from_query(q)
+                        self.Queue.append(url)
+
+                        await msg.channel.send("Added song to the queue: "+url)
+
+                if not self.playerLoopRunning:
+                    self.loop.create_task(self.playerLoop())
             else:
-                del parts[0]
-
-                q = " ".join(parts)
-                url = YTDLSource.url_from_query(q)
-                self.Queue.append(url)
-
-                await msg.channel.send("Added song to the queue: "+url)
-
-        if not self.playerLoopRunning:
-            self.loop.create_task(self.playerLoop())
+                await msg.channel.send(msg.author.mention+", the bot isn't in the same voice channel as you.")
+        else:
+            await msg.channel.send(msg.author.mention+", the bot isn't in a voice channel.")
 
     async def skip_cmd(self, msg, parts):
         if self.VoiceClient != None and self.VoiceClient.is_connected():
@@ -559,6 +566,6 @@ if __name__ == "__main__":
 
     bot = Bot()
 
-    io.Stop()
+    io.stop()
     while not io.isStopped():
         time.sleep(.5)
