@@ -54,6 +54,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
     @classmethod
     def url_from_query(self, q):
+        # TODO: Make this request async
         d = requests.get("https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q="+urllib.parse.quote(q)+"&type=video&key="+io.read()["ytToken"])
         return "https://www.youtube.com/watch?v="+d.json()["items"][0]["id"]["videoId"]
 
@@ -174,7 +175,8 @@ class Bot(discord.Client):
             if msg.author.voice.channel != self.VoiceClient.channel:
                 await self.join_cmd(msg, parts)
 
-            if msg.author.voice.channel == self.VoiceClient.channel:
+            # TODO: Fix this check up
+            if self.VoiceClient != None and self.VoiceClient.is_connected() and msg.author.voice.channel == self.VoiceClient.channel:
                 if len(parts) > 1:
                     if len(parts) == 2 and parts[1].count(" ") == 0 and "." in parts[1] and "/" in parts[1]:
                         url = parts[1]
