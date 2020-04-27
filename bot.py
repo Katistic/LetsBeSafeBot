@@ -45,9 +45,12 @@ class YTDLSource(discord.PCMVolumeTransformer):
         loop = loop or asyncio.get_event_loop()
         data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
 
+        # Redundant due to noplaylist param
+        '''
         if 'entries' in data:
             # take first item from a playlist
             data = data['entries'][0]
+        '''
 
         filename = data['url'] if stream else ytdl.prepare_filename(data)
         return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
@@ -57,6 +60,29 @@ class YTDLSource(discord.PCMVolumeTransformer):
         # TODO: Make this request async
         d = requests.get("https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q="+urllib.parse.quote(q)+"&type=video&key="+io.read()["ytToken"])
         return "https://www.youtube.com/watch?v="+d.json()["items"][0]["id"]["videoId"]
+
+    @classmethod
+    def urls_from_playlist_id(self, id, all=True, npt=None):
+        # TODO: Make these requests async
+
+        if npt == None:
+            d = requests.get("https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&maxResults=50&playlistId="+id+"&key="+io.read()["ytToken"])
+        else:
+            d = requests.get("https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&maxResults=50&pageToken="+npt+"&playlistId="+id+"&key="+io.read()["ytToken"])
+
+        if d.status_code != 200:
+            return []
+        else:
+            d = d.json()
+            items = []
+
+            for item in d["items"]:
+                items.append("https://www.youtube.com/watch?v="+item["contentDetails"]["videoId"])
+
+            if all == True and "nextPageToken" in d:
+                items += self.urls_from_playlist_id(id, all, d["nextPageToken"])
+
+            return items
 
 class Bot(discord.Client):
     def removeFile(self, base):
@@ -191,8 +217,8 @@ class Bot(discord.Client):
 
                         await msg.channel.send("Added song to the queue: "+url)
 
-                if not self.playerLoopRunning:
-                    self.loop.create_task(self.playerLoop())
+                    if not self.playerLoopRunning:
+                        self.loop.create_task(self.playerLoop())
             else:
                 await msg.channel.send(msg.author.mention+", the bot isn't in the same voice channel as you.")
         else:
@@ -572,10 +598,12 @@ class Bot(discord.Client):
                 await self.VoiceClient.disconnect()
                 self.VoiceClient = None
 
+    '''
     async def on_error(self, event, *args, **kwargs):
         print("[ERR] Bot failed on event '" + event + "', with args "+str(args)+" and kwargs "+str(kwargs))
         if event == "on_message":
             await self.get_guild(args[0].guild.id).get_channel(args[0].channel.id).send("An error occured...")
+    '''
 
 if __name__ == "__main__":
     io = IOM("configs.json")
