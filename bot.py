@@ -204,7 +204,7 @@ class Bot(discord.Client):
 
     async def play_cmd(self, msg, parts):
         if msg.author.voice != None:
-            if msg.author.voice.channel != self.VoiceClient.channel:
+            if self.VoiceClient == None or msg.author.voice.channel != self.VoiceClient.channel:
                 await self.join_cmd(msg, parts)
 
             # TODO: Fix this check up
@@ -629,7 +629,7 @@ class Bot(discord.Client):
 
     async def on_voice_state_update(self, member, b, a):
         if self.VoiceClient != None and self.VoiceClient.channel != None:
-            if len(self.VoiceClient.channel.members) == 1:
+            if len(self.VoiceClient.channel.members) == 1 and self.member.guild.me in self.VoiceClient.channel.members:
                 await self.VoiceClient.channel.guild.get_channel(632591366400245787).send("Everyone left the voice channel, queue has been cleared.")
                 self.Queue.clear()
                 self.VoiceClient.stop()
